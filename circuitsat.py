@@ -1,5 +1,6 @@
 from enum import Enum
 from multiprocessing.sharedctypes import Value
+from queue import Empty
 import pycosat
 
 def read_cnf_file(fname) :
@@ -72,6 +73,18 @@ def is_unary(g):
 def is_binary(g):
     return len(g)==1 and binary_gates.find(g)!=-1
 
+def is_positive(g):
+    return g > 0
+
+def has_forward_ref(h, g):
+    return h > g
+
+def has_self_ref(h, g):
+    return h == g
+
+def check_gate_validity(h, g):
+    return has_forward_ref(h, g) or has_self_ref(h, g)
+
 class Circuit:
     # A simple representatioin of a Boolean circuit
 
@@ -93,43 +106,76 @@ class Circuit:
             tmp.append('{} : {}\n'.format(i,gate))
         return ''.join(tmp)
         
-def read_circuit_file(fname):
+def read_circuit_file(fname, isVerbose):
     # Parse a file in the Optimization .circuit format we define as follows:
-    # The first line of file consists of a single number describing the number n of inputs to the circuit                               #1                              
+    # The first line of file consists of a single number describing the number n of inputs to the circuit                                                           
     # Each remaining line describes a single gate of the circuit.                                                                       
-    # There must be at least one such line, and the last line describes the output gate of the circuit.                                 #2
+    # There must be at least one such line, and the last line describes the output gate of the circuit.                                 
     # Gates are implicitly enumerated, starting from n+1. The inputs are numbered 1 through n.                                          
     # A description of a gate consists of its type specified as a single character describing the type of function                      
-    # followed by zero, one, or two postive integers (for nullary (i.e. constants), unary or binary gates).                             #6
-    # A nullary gate is either the Boolean constant TRUE (type '1') or the Boolean constant FALSE (type '0').                           #7
-    # A unary gate is either a COPY gate (type 'C') or a NOT gate (type 'N').                                                           #8
-    # A binary gate is either an AND gate (type 'A'), an OR gate (type 'O'), an XOR gate (type 'X'), or an EQUAL gate (type 'E').       #9
-    # The input(s) to the gate is described by positive integers that may refer to either an input or to an *already described* gate.   #10
+    # followed by zero, one, or two postive integers (for nullary (i.e. constants), unary or binary gates).                            
+    # A nullary gate is either the Boolean constant TRUE (type '1') or the Boolean constant FALSE (type '0').                          
+    # A unary gate is either a COPY gate (type 'C') or a NOT gate (type 'N').                                                          
+    # A binary gate is either an AND gate (type 'A'), an OR gate (type 'O'), an XOR gate (type 'X'), or an EQUAL gate (type 'E').      
+    # The input(s) to the gate is described by positive integers that may refer to either an input or to an *already described* gate.   
     #
     # A successfully parsed circuit is returned as a Circuit class.
     # Otherwise the string 'INVALID' is returned.
 
     invalid = "INVALID"
-    # mapping = {"0": 1, "1": 1, "C": 1, "N": 1, "A": 2, "O": 2, "X": 2, "E": 2} # #6,7,8,9,10
     gates = []
     
     try:
         file = open(fname)
         lines = [line[:-1] for line in file.readlines()]
 
-        if len(lines) < 2: # #2
+        if len(lines) < 2 or not lines: 
             return invalid
 
         try:
-            n = int(lines[0]) # #1
+            n = int(lines[0]) 
+            g_number_so_far = n + 1
+
             for line in lines[1:]:
-                if not(valid_gate_type(line[0])):
+                line = line.split()
+                g = line[0]
+
+                if not(valid_gate_type(g)):
+                    if isVerbose: 
+                        print("Not a valid gate type!")
                     return invalid
-                gates.append(line.split())
-            return Circuit(n, gates)
+                
+                if is_nullary(g):
+                    gates += [[g]]
+                elif is_unary(g):
+                    h1 = int(line[1])
+                    if check_gate_validity(h1, g_number_so_far):
+                        return invalid
+                    gates += [[g, h1]]
+                elif is_binary(g):
+                    h1 = int(line[1])
+                    h2 = int(line[2])
+                    if check_gate_validity(h1, g_number_so_far) or check_gate_validity(h2, g_number_so_far):
+                        return invalid
+                    gates += [[g, h1, h2]]
+                else:
+                    return invalid
+
+                g_number_so_far += 1
+
+            circuit = Circuit(n, gates)
+
+            # if isVerbose:
+            #         print(circuit)
+
+            return circuit
         except ValueError:
+            if isVerbose:
+                print("Could not convert string to int")
             return invalid
     except ValueError:
+        if isVerbose:
+            print("Could not open file", fname)
         return invalid
 
 def CSAT_to_SAT(circuit: Circuit):
@@ -146,10 +192,10 @@ def CSAT_to_SAT(circuit: Circuit):
         h2 = 0
 
         if gate_length == 2:
-            h1 = int(gate[1])
+            h1 = gate[1]
         elif gate_length == 3:
-            h1 = int(gate[1])
-            h2 = int(gate[2])
+            h1 = gate[1]
+            h2 = gate[2]
 
         if gate_type == "0":
             cnf += [[-g]]
@@ -177,7 +223,10 @@ def reduce_CSAT_to_SAT(infile, outfile, isVerbose=False):
     # valid encodings of CSAT instances are encoded in the Optimization .circuit format
     # valid encodings of SAT instances are encoded in the DIMACS .cnf format
     
-    circuit = read_circuit_file(infile)
+    circuit = read_circuit_file(infile, True)
+    if circuit == "INVALID":
+        write_cnf_file([[-1], [1]], outfile)
+        return
     cnf = CSAT_to_SAT(circuit)
     write_cnf_file(cnf, outfile)
 
@@ -238,5 +287,10 @@ def run_examples():
     cnf = read_cnf_file('div2.cnf')
     res = pycosat.solve(cnf)
     print(res!='UNSAT') # ?
+
+    reduce_CSAT_to_SAT("empty.circuit", "empty.cnf")
+    cnf = read_cnf_file("empty.cnf")
+    res = pycosat.solve(cnf)
+    print(res!='UNSAT') # false
     
 run_examples()
