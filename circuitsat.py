@@ -73,17 +73,8 @@ def is_unary(g):
 def is_binary(g):
     return len(g)==1 and binary_gates.find(g)!=-1
 
-def is_positive(g):
-    return g > 0
-
-def has_forward_ref(h, g):
-    return h > g
-
-def has_self_ref(h, g):
-    return h == g
-
-def check_gate_validity(h, g):
-    return has_forward_ref(h, g) or has_self_ref(h, g)
+def is_gate_valid(h, g):
+  return h < g and h > 0
 
 class Circuit:
     # A simple representatioin of a Boolean circuit
@@ -122,7 +113,6 @@ def read_circuit_file(fname, isVerbose):
     # A successfully parsed circuit is returned as a Circuit class.
     # Otherwise the string 'INVALID' is returned.
 
-    invalid = "INVALID"
     gates = []
     
     try:
@@ -130,55 +120,45 @@ def read_circuit_file(fname, isVerbose):
         lines = [line[:-1] for line in file.readlines()]
 
         if len(lines) < 2 or not lines: 
-            return invalid
+            raise ValueError
+        n = int(lines[0]) 
+        g_number_so_far = n + 1
 
-        try:
-            n = int(lines[0]) 
-            g_number_so_far = n + 1
+        for line in lines[1:]:
+            line = line.split()
+            line_length = len(line)
+            g = line[0]
 
-            for line in lines[1:]:
-                line = line.split()
-                g = line[0]
+            if not(valid_gate_type(g)):
+                if isVerbose: 
+                    print("Not a valid gate type!", g)
+                raise ValueError
+            
+            if is_nullary(g) and line_length == 1:
+                if line_length != 1:
+                    raise ValueError
+                gates += [[g]]
+            elif is_unary(g) and line_length == 2:
+                h1 = int(line[1])1
+                if not(is_gate_valid(h1, g_number_so_far)):
+                    raise ValueError
+                gates += [[g, h1]]
+            elif is_binary(g) and line_length == 3:
+                h1 = int(line[1])
+                h2 = int(line[2])
+                if not(is_gate_valid(h1, g_number_so_far)) or not(is_gate_valid(h2, g_number_so_far)):
+                    raise ValueError
+                gates += [[g, h1, h2]]
+            else:
+                raise ValueError
 
-                if not(valid_gate_type(g)):
-                    if isVerbose: 
-                        print("Not a valid gate type!")
-                    return invalid
-                
-                if is_nullary(g):
-                    gates += [[g]]
-                elif is_unary(g):
-                    h1 = int(line[1])
-                    if check_gate_validity(h1, g_number_so_far):
-                        return invalid
-                    gates += [[g, h1]]
-                elif is_binary(g):
-                    h1 = int(line[1])
-                    h2 = int(line[2])
-                    if check_gate_validity(h1, g_number_so_far) or check_gate_validity(h2, g_number_so_far):
-                        return invalid
-                    gates += [[g, h1, h2]]
-                else:
-                    return invalid
+            g_number_so_far += 1
 
-                g_number_so_far += 1
-
-            circuit = Circuit(n, gates)
-
-            # if isVerbose:
-            #         print(circuit)
-
-            return circuit
-        except ValueError:
-            if isVerbose:
-                print("Could not convert string to int")
-            return invalid
+        return Circuit(n, gates)
     except ValueError:
-        if isVerbose:
-            print("Could not open file", fname)
-        return invalid
+        return "INVALID"
 
-def CSAT_to_SAT(circuit: Circuit):
+def CSAT_to_SAT(circuit):
     # reduction between valid internal representations
     # input is a Circuit object
     # output is list of clauses that each are a list of positive and negative literals
@@ -288,9 +268,23 @@ def run_examples():
     res = pycosat.solve(cnf)
     print(res!='UNSAT') # ?
 
-    reduce_CSAT_to_SAT("empty.circuit", "empty.cnf")
-    cnf = read_cnf_file("empty.cnf")
-    res = pycosat.solve(cnf)
-    print(res!='UNSAT') # false
+    # reduce_CSAT_to_SAT("empty.circuit", "empty.cnf")
+    # cnf = read_cnf_file("empty.cnf")
+    # res = pycosat.solve(cnf)
+    # print(res!='UNSAT') # false
     
+    # reduce_CSAT_to_SAT("letter.circuit", "letter.cnf")
+    # cnf = read_cnf_file("letter.cnf")
+    # res = pycosat.solve(cnf)
+    # print(res!='UNSAT') # false
+
+    # reduce_CSAT_to_SAT("letters.circuit", "letters.cnf")
+    # cnf = read_cnf_file("letters.cnf")
+    # res = pycosat.solve(cnf)
+    # print(res!='UNSAT') # false
+
+    # reduce_CSAT_to_SAT("test3.circuit", "test3.cnf")
+    # cnf = read_cnf_file("test3.cnf")
+    # res = pycosat.solve(cnf)
+    # print(res!='UNSAT') # false
 run_examples()
