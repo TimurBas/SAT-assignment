@@ -139,7 +139,7 @@ def read_circuit_file(fname, isVerbose):
                     raise ValueError
                 gates += [[g]]
             elif is_unary(g) and line_length == 2:
-                h1 = int(line[1])1
+                h1 = int(line[1])
                 if not(is_gate_valid(h1, g_number_so_far)):
                     raise ValueError
                 gates += [[g, h1]]
