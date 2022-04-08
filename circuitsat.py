@@ -219,10 +219,12 @@ def reduce_CSAT2_to_SAT(infile, outfile):
     # valied encodings of CSAT instances are encoded in the Optimization .circuit format
     # valid encodings of SAT instances are encoded in the DIMACS .cnf format
     
-    C = read_circuit_file(infile)  
-    #
-    # TODO
-    #
+    circuit = read_circuit_file(infile, True)
+    if circuit == "INVALID":
+        write_cnf_file([[-1], [1]], outfile)
+        return
+    cnf = CSAT_to_SAT(circuit)
+    write_cnf_file(cnf, outfile)
    
 def run_examples():
     cnf = read_cnf_file('hole6.cnf') # UNSAT
