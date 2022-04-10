@@ -221,15 +221,12 @@ def create_distinct_variables_cnf(n, g):
     tuple_list = list(zip(original_vars, copy_vars))
     t1, t2 = tuple_list[0]
     cnf += [[-g, -t1, -t2], [-g, t1, t2], [g, t1, -t2], [g, -t1, t2]]
-    cnf += [[g, -t1], [g, -t2], [-g, t1, t2]]
     g += 1
 
-    for ti, tj in tuple_list:
+    for ti, tj in tuple_list[1:]:
         cnf += [[-g, -ti, -tj], [-g, ti, tj], [g, ti, -tj], [g, -ti, tj]]
-        cnf += [[g, -ti], [g, -tj], [-g, ti, tj]]
         g += 1
         cnf += [[g, -(g-2)], [g, -(g-1)], [-g, g-2, g-1]]
-
     return cnf
 
 
