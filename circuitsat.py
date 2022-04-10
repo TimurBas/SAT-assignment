@@ -214,7 +214,6 @@ def CSAT_to_SAT(circuit):
 
 
 def create_distinct_variables_cnf(n, g):
-    print(g)
     cnf = []
     var_list = [e+1 for e in range(n)]
     original_vars = var_list[:int(len(var_list)/2)]
@@ -234,15 +233,15 @@ def create_distinct_variables_cnf(n, g):
     return cnf
 
 
-def find_correct_copy_g(gate, n, original_g):
+def find_correct_copy_g(gate, n, original_g, circuit_len):
     if gate <= n:
         return n + gate
     else:
-        return original_g + n + 1
+        return original_g + circuit_len
 
 
 def find_correct_original_g(gate, n):
-    if gate > n and gate <= 2*n:
+    if gate > n:
         return gate + n
     return gate
 
@@ -263,14 +262,14 @@ def copy_circuit(circuit):
             original_gates[index] = [
                 gate[0], original_g]
             copy_gates += [[gate[0],
-                            find_correct_copy_g(gate[1], n, original_g)]]
+                            find_correct_copy_g(gate[1], n, original_g, len(original_gates))]]
         else:
             first_original_g = find_correct_original_g(gate[1], n)
             second_original_g = find_correct_original_g(gate[2], n)
             original_gates[index] = [
                 gate[0], first_original_g, second_original_g]
             copy_gates += [[gate[0],
-                            find_correct_copy_g(gate[1], n, first_original_g), find_correct_copy_g(gate[2], n, second_original_g)]]
+                            find_correct_copy_g(gate[1], n, first_original_g, len(original_gates)), find_correct_copy_g(gate[2], n, second_original_g, len(original_gates))]]
 
     last_gate = ["A", double_n + len(original_gates), double_n +
                  len(original_gates) + len(copy_gates)]
@@ -302,6 +301,7 @@ def reduce_CSAT2_to_SAT(infile, outfile):
         write_cnf_file([[-1], [1]], outfile)
         return
     composite_circuit = copy_circuit(circuit)
+    print(composite_circuit)
     cnf = CSAT_to_SAT(composite_circuit)
     variables_cnf = create_distinct_variables_cnf(
         composite_circuit.n, composite_circuit.n + len(composite_circuit.gates) + 1)
