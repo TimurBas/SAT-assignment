@@ -94,7 +94,7 @@ class Circuit:
         return ''.join(tmp)
 
 
-def read_circuit_file(fname, isVerbose):
+def read_circuit_file(fname):
     gates = []
 
     try:
@@ -112,8 +112,6 @@ def read_circuit_file(fname, isVerbose):
             g = line[0]
 
             if not(valid_gate_type(g)):
-                if isVerbose:
-                    print("Not a valid gate type!", g)
                 raise ValueError
 
             if is_nullary(g) and line_length == 1:
@@ -239,8 +237,8 @@ def copy_circuit(circuit):
     return Circuit(double_n, original_gates + copy_gates + [last_gate])
 
 
-def reduce_CSAT_to_SAT(infile, outfile, isVerbose=False):
-    circuit = read_circuit_file(infile, True)
+def reduce_CSAT_to_SAT(infile, outfile):
+    circuit = read_circuit_file(infile)
     if circuit == "INVALID":
         write_cnf_file([[-1], [1]], outfile)
         return
@@ -249,7 +247,7 @@ def reduce_CSAT_to_SAT(infile, outfile, isVerbose=False):
 
 
 def reduce_CSAT2_to_SAT(infile, outfile):
-    circuit = read_circuit_file(infile, True)
+    circuit = read_circuit_file(infile)
     if circuit == "INVALID":
         write_cnf_file([[-1], [1]], outfile)
         return
