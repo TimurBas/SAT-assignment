@@ -9,11 +9,6 @@ import pycosat
 
 
 def read_cnf_file(fname):
-    # Parse a file in DIMACS .cnf format as described in the file
-    # http://archive.dimacs.rutgers.edu/pub/challenge/satisfiability/doc/satformat.dvi
-    #
-    # A successfully parsed cnf results in a list of clauses where each clause is a list of positive and negative literals
-    # described by positive and negative integers as in the DIMACS format. This list may be input directly to pycosat
     try:
         file = open(fname, 'r')
         lines = file.readlines()
@@ -48,7 +43,6 @@ def read_cnf_file(fname):
 
 
 def write_cnf_file(cnf, fname, comments=["no description"]):
-    # Write a cnf to the DIMACS .cnf format
     file = open(fname, 'w')
     for comment in comments:
         file.write('c '+comment+'\n')
@@ -88,18 +82,7 @@ def is_binary(g):
 def is_gate_valid(h, g):
     return h < g and h > 0
 
-
 class Circuit:
-    # A simple representatioin of a Boolean circuit
-
-    # 'n' is an integer describing the number of inputs
-    # 'gates' is a list of gates of the circuit. Each gate is a list of length 1, 2 or 3.
-    # The i-th gate of the circuit is implicitly enumerated, starting from n+1.
-    # The first element of each gate list is a character that specifies the type of gate
-    # and the remaining elements are integers that specify the inputs to the gate
-    # as described in the read_circuit_file function below.
-    # The last gate of the circuit is the output of the circuit.
-
     def __init__(self, n, gates):
         self.n = n
         self.gates = gates
@@ -112,21 +95,6 @@ class Circuit:
 
 
 def read_circuit_file(fname, isVerbose):
-    # Parse a file in the Optimization .circuit format we define as follows:
-    # The first line of file consists of a single number describing the number n of inputs to the circuit
-    # Each remaining line describes a single gate of the circuit.
-    # There must be at least one such line, and the last line describes the output gate of the circuit.
-    # Gates are implicitly enumerated, starting from n+1. The inputs are numbered 1 through n.
-    # A description of a gate consists of its type specified as a single character describing the type of function
-    # followed by zero, one, or two postive integers (for nullary (i.e. constants), unary or binary gates).
-    # A nullary gate is either the Boolean constant TRUE (type '1') or the Boolean constant FALSE (type '0').
-    # A unary gate is either a COPY gate (type 'C') or a NOT gate (type 'N').
-    # A binary gate is either an AND gate (type 'A'), an OR gate (type 'O'), an XOR gate (type 'X'), or an EQUAL gate (type 'E').
-    # The input(s) to the gate is described by positive integers that may refer to either an input or to an *already described* gate.
-    #
-    # A successfully parsed circuit is returned as a Circuit class.
-    # Otherwise the string 'INVALID' is returned.
-
     gates = []
 
     try:
@@ -174,9 +142,6 @@ def read_circuit_file(fname, isVerbose):
 
 
 def CSAT_to_SAT(circuit):
-    # reduction between valid internal representations
-    # input is a Circuit object
-    # output is list of clauses that each are a list of positive and negative literals
     cnf = []
 
     for g, gate in enumerate(circuit.gates, start=circuit.n + 1):
@@ -227,6 +192,7 @@ def create_distinct_variables_cnf(n, g):
         cnf += [[-g, -ti, -tj], [-g, ti, tj], [g, ti, -tj], [g, -ti, tj]]
         g += 1
         cnf += [[g, -(g-2)], [g, -(g-1)], [-g, g-2, g-1]]
+        g += 1
     return cnf
 
 
@@ -274,11 +240,6 @@ def copy_circuit(circuit):
 
 
 def reduce_CSAT_to_SAT(infile, outfile, isVerbose=False):
-    # performs reduction from CircuitSAT to SAT
-    # the input is read from infile and the output written to outfile
-    # valid encodings of CSAT instances are encoded in the Optimization .circuit format
-    # valid encodings of SAT instances are encoded in the DIMACS .cnf format
-
     circuit = read_circuit_file(infile, True)
     if circuit == "INVALID":
         write_cnf_file([[-1], [1]], outfile)
@@ -288,17 +249,11 @@ def reduce_CSAT_to_SAT(infile, outfile, isVerbose=False):
 
 
 def reduce_CSAT2_to_SAT(infile, outfile):
-    # performs reduction from CircuitSAT2 to SAT
-    # the input is read from infile and the output written to outfile
-    # valied encodings of CSAT instances are encoded in the Optimization .circuit format
-    # valid encodings of SAT instances are encoded in the DIMACS .cnf format
-
     circuit = read_circuit_file(infile, True)
     if circuit == "INVALID":
         write_cnf_file([[-1], [1]], outfile)
         return
     composite_circuit = copy_circuit(circuit)
-    print(composite_circuit)
     cnf = CSAT_to_SAT(composite_circuit)
     variables_cnf = create_distinct_variables_cnf(
         composite_circuit.n, composite_circuit.n + len(composite_circuit.gates) + 1)
@@ -306,66 +261,66 @@ def reduce_CSAT2_to_SAT(infile, outfile):
 
 
 def run_examples():
-    # cnf = read_cnf_file('hole6.cnf')  # UNSAT
-    # res = pycosat.solve(cnf)
-    # print(res != 'UNSAT')  # False
+    cnf = read_cnf_file('hole6.cnf')  # UNSAT
+    res = pycosat.solve(cnf)
+    print(res != 'UNSAT')  # False
 
-    # cnf = read_cnf_file('hanoi4.cnf')  # SAT
-    # res = pycosat.solve(cnf)
-    # print(res != 'UNSAT')  # True
+    cnf = read_cnf_file('hanoi4.cnf')  # SAT
+    res = pycosat.solve(cnf)
+    print(res != 'UNSAT')  # True
 
-    # reduce_CSAT_to_SAT('test1.circuit', 'test1.cnf')
-    # cnf = read_cnf_file('test1.cnf')
-    # res = pycosat.solve(cnf)
-    # print(res != 'UNSAT')  # ?
+    reduce_CSAT_to_SAT('test1.circuit', 'test1.cnf')
+    cnf = read_cnf_file('test1.cnf')
+    res = pycosat.solve(cnf)
+    print(res != 'UNSAT') # False
 
-    # reduce_CSAT_to_SAT('test2.circuit', 'test2.cnf')
-    # cnf = read_cnf_file('test2.cnf')
-    # res = pycosat.solve(cnf)
-    # print(res != 'UNSAT')  # ?
+    reduce_CSAT_to_SAT('test2.circuit', 'test2.cnf')
+    cnf = read_cnf_file('test2.cnf')
+    res = pycosat.solve(cnf)
+    print(res != 'UNSAT') # True
 
     reduce_CSAT2_to_SAT('test2.circuit', 'test2_2.cnf')
     cnf = read_cnf_file('test2_2.cnf')
     res = pycosat.solve(cnf)
-    print(res != 'UNSAT')  # ?
+    print(res != 'UNSAT') # True
 
-    # reduce_CSAT_to_SAT('sub1.circuit', 'sub1.cnf')
-    # cnf = read_cnf_file('sub1.cnf')
-    # res = pycosat.solve(cnf)
-    # print(res != 'UNSAT')  # ?
+    reduce_CSAT_to_SAT('sub1.circuit', 'sub1.cnf')
+    cnf = read_cnf_file('sub1.cnf')
+    res = pycosat.solve(cnf)
+    print(res != 'UNSAT') # True
 
-    # reduce_CSAT_to_SAT('sub2.circuit', 'sub2.cnf')
-    # cnf = read_cnf_file('sub2.cnf')
-    # res = pycosat.solve(cnf)
-    # print(res != 'UNSAT')  # ?
+    reduce_CSAT_to_SAT('sub2.circuit', 'sub2.cnf')
+    cnf = read_cnf_file('sub2.cnf')
+    res = pycosat.solve(cnf)
+    print(res != 'UNSAT') # True
 
-    # reduce_CSAT_to_SAT('div1.circuit', 'div1.cnf')
-    # cnf = read_cnf_file('div1.cnf')
-    # res = pycosat.solve(cnf)
-    # print(res != 'UNSAT')  # ?
+    reduce_CSAT_to_SAT('div1.circuit', 'div1.cnf')
+    cnf = read_cnf_file('div1.cnf')
+    res = pycosat.solve(cnf)
+    print(res != 'UNSAT') # True
 
-    # reduce_CSAT_to_SAT('div2.circuit', 'div2.cnf')
-    # cnf = read_cnf_file('div2.cnf')
-    # res = pycosat.solve(cnf)
-    # print(res != 'UNSAT')  # ?
+    reduce_CSAT_to_SAT('div2.circuit', 'div2.cnf')
+    cnf = read_cnf_file('div2.cnf')
+    res = pycosat.solve(cnf)
+    print(res != 'UNSAT') # false
 
-    # reduce_CSAT_to_SAT("empty.circuit", "empty.cnf")
-    # cnf = read_cnf_file("empty.cnf")
-    # res = pycosat.solve(cnf)
-    # print(res!='UNSAT') # false
+    reduce_CSAT_to_SAT("empty.circuit", "empty.cnf")
+    cnf = read_cnf_file("empty.cnf")
+    res = pycosat.solve(cnf)
+    print(res!='UNSAT') # false
 
-    # reduce_CSAT_to_SAT("letter.circuit", "letter.cnf")
-    # cnf = read_cnf_file("letter.cnf")
-    # res = pycosat.solve(cnf)
-    # print(res!='UNSAT') # false
+    reduce_CSAT_to_SAT("letter.circuit", "letter.cnf")
+    cnf = read_cnf_file("letter.cnf")
+    res = pycosat.solve(cnf)
+    print(res!='UNSAT') # false
 
-    # reduce_CSAT_to_SAT("letters.circuit", "letters.cnf")
-    # cnf = read_cnf_file("letters.cnf")
-    # res = pycosat.solve(cnf)
-    # print(res!='UNSAT') # false
+    reduce_CSAT_to_SAT("letters.circuit", "letters.cnf")
+    cnf = read_cnf_file("letters.cnf")
+    res = pycosat.solve(cnf)
+    print(res!='UNSAT') # false
 
-    # reduce_CSAT_to_SAT("test3.circuit", "test3.cnf")
-    # cnf = read_cnf_file("test3.cnf")
-    # res = pycosat.solve(cnf)
-    # print(res!='UNSAT') # false
+    reduce_CSAT_to_SAT("test3.circuit", "test3.cnf")
+    cnf = read_cnf_file("test3.cnf")
+    res = pycosat.solve(cnf)
+    print(res!='UNSAT') # false
 run_examples()
